@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý người dùng - React CRUD</title>
+    
+    <!-- BƯỚC 1: Thiết lập React cơ bản & Babel qua CDN -->
+    <!-- React core -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <!-- ReactDOM để render vào #root -->
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel để dùng JSX trong <script type="text/babel"> -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- BƯỚC 8: Thêm CSS cho giao diện bảng, form, modal -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- BƯỚC 1: Khung HTML có #root để React mount vào  -->
+    <div id="root"></div>
+
+    <!-- BƯỚC 1: Viết mã React trong script type="text/babel"  -->
+    <script type="text/babel">
+        /* =========================================================
+           BƯỚC 2: Tổ chức COMPONENT và STATE tập trung
+           - App là component cha quản lý toàn bộ state dùng chung.
+           - Con: SearchForm (search), AddUser (create), ResultTable (read/edit/delete).
+           - Nguyên tắc: "State lifting" — cha giữ state, truyền props/hàm xuống con.
+           ========================================================= */
+
+        // BƯỚC 3: SearchForm - truyền dữ liệu tìm kiếm từ con -> cha
+        function SearchForm({ onChangeValue }) {
+            return (
+                <input
+                    type="text"
+                    className="search-input"
+                    placeholder="Tìm kiếm theo tên hoặc username..."
+                    /* onChange gọi callback từ App để cập nhật kw (one-way data flow) */
+                    onChange={(e) => onChangeValue(e.target.value)}
+                />
+            );
+        }
+
+        // BƯỚC 5: AddUser - Form thêm người dùng mới (nested state address)
+        function AddUser({ onAdd }) {
+            // Hiển thị/ẩn modal thêm (UI state)
+            const [adding, setAdding] = React.useState(false);
+            // State form: có đối tượng lồng nhau 'address' => cần spread khi cập nhật
+            const [user, setUser] = React.useState({
+                name: "",
+                username: "",
+                email: "",
+                address: {
+                    street: "",
+                    suite: "",
+                    city: ""
+                },
+                phone: "",
+                website: ""
+            });
+
+            // BƯỚC 5: Xử lý state lồng nhau - dùng spread ... để giữ phần còn lại
+            const handleChange = (e) => {
+                const { id, value } = e.target;
+                if (["street", "suite", "city"].includes(id)) {
+                    setUser({
+                        ...user,
+                        address: {
+                            ...user.address,
+                            [id]: value
+                        }
+                    });
+                } else {
+                    setUser({
+                        ...user,
+                        [id]: value
+                    });
+                }
+            };
+
+            // BƯỚC 5: Thao tác thêm - validate tối thiểu, truyền data lên App qua onAdd
+            const handleAdd = () => {
+                if (user.name === "" || user.username === "") {
+                    alert("Vui lòng nhập tên và username!");
+                    return;
+                }
+
+                onAdd(user); // truyền lên App
+                // Reset form sau khi thêm
+                setUser({
+                    name: "",
+                    username: "",
+                    email: "",
+                    address: {
+                        street: "",
+                        suite: "",
+                        city: ""
+                    },
+                    phone: "",
+                    website: ""
+                });
+                setAdding(false);
+            };
+
+            return (
+                <div>
+                    {/* Nút mở modal thêm */}
+                    <button 
+                        className="btn btn-primary"
+                        onClick={() => setAdding(true)}
+                    >
+                        Thêm người dùng
+                    </button>
+                    
+                    {/* BƯỚC 8: Modal thêm người dùng - dùng class .modal-* trong CSS  */}
+                    {adding && (
+                        <div className="modal-overlay">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h3 className="modal-title">Thêm người dùng mới</h3>
+                                    <button 
+                                        className="close-btn"
+                                        onClick={() => setAdding(false)}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                
+                                {/* Form controlled inputs */}
+                                <div className="form-group">
+                                    <label htmlFor="name">Tên *</label>
+                                    <input
+                                        id="name"
+                                        type="text"
+                                        value={user.name}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="username">Username *</label>
+                                    <input
+                                        id="username"
+                                        type="text"
+                                        value={user.username}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="email">Email</label>
+                                    <input
+                                        id="email"
+                                        type="email"
+                                        value={user.email}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                
+                                {/* BƯỚC 5: Trường địa chỉ (nested) */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="street">Đường</label>
+                                        <input
+                                            id="street"
+                                            type="text"
+                                            value={user.address.street}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="suite">Suite</label>
+                                        <input
+                                            id="suite"
+                                            type="text"
+                                            value={user.address.suite}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="city">Thành phố</label>
+                                    <input
+                                        id="city"
+                                        type="text"
+                                        value={user.address.city}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="phone">Số điện thoại</label>
+                                    <input
+                                        id="phone"
+                                        type="text"
+                                        value={user.phone}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="website">Website</label>
+                                    <input
+                                        id="website"
+                                        type="text"
+                                        value={user.website}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                                
+                                <div className="form-actions">
+                                    <button 
+                                        className="btn btn-cancel"
+                                        onClick={() => setAdding(false)}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button 
+                                        className="btn btn-primary"
+                                        onClick={handleAdd}
+                                    >
+                                        Thêm
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // BƯỚC 4,6,7: ResultTable - tải dữ liệu, lọc, sửa, xóa, và nhận thêm mới
+        function ResultTable({ keyword, user, onAdded }) {
+            const [users, setUsers] = React.useState([]);
+            const [loading, setLoading] = React.useState(true);
+            const [editing, setEditing] = React.useState(null); // BƯỚC 6: state editing
+
+            // BƯỚC 4: Tải dữ liệu 1 lần khi mount (useEffect deps [])
+            React.useEffect(() => {
+                fetch("https://jsonplaceholder.typicode.com/users")
+                    .then(res => res.json())
+                    .then(data => {
+                        setUsers(data);
+                        setLoading(false);
+                    })
+                    .catch(error => {
+                        console.error("Lỗi khi tải dữ liệu:", error);
+                        setLoading(false);
+                    });
+            }, []);
+
+            // BƯỚC 5: Khi prop user thay đổi -> thêm vào danh sách rồi gọi onAdded để reset
+            React.useEffect(() => {
+                if (user) {
+                    const newUser = {
+                        ...user,
+                        // tạo id mới dựa trên max id hiện có
+                        id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1
+                    };
+                    setUsers(prev => [...prev, newUser]);
+                    onAdded(); // báo cho App reset newUser về null
+                }
+            }, [user]);
+
+            // BƯỚC 4: Lọc theo keyword từ props (name/username) 
+            const filteredUsers = users.filter(u =>
+                u.name.toLowerCase().includes(keyword.toLowerCase()) ||
+                u.username.toLowerCase().includes(keyword.toLowerCase())
+            );
+
+            // BƯỚC 6: Bật form sửa - deep copy để tránh sửa nhầm dữ liệu gốc
+            const editUser = (user) => {
+                setEditing({ ...user, address: { ...user.address } });
+            };
+
+            // BƯỚC 6: Controlled inputs cho form sửa, hỗ trợ field lồng nhau address.
+            const handleEditChange = (field, value) => {
+                if (field.startsWith('address.')) {
+                    const addressField = field.split('.')[1];
+                    setEditing(prev => ({
+                        ...prev,
+                        address: {
+                            ...prev.address,
+                            [addressField]: value
+                        }
+                    }));
+                } else {
+                    setEditing(prev => ({
+                        ...prev,
+                        [field]: value
+                    }));
+                }
+            };
+
+            // BƯỚC 6: Lưu thay đổi - map theo id để thay thế bản ghi (immutable) 
+            const saveUser = () => {
+                setUsers(prev => prev.map(u => u.id === editing.id ? editing : u));
+                setEditing(null);
+            };
+
+            // BƯỚC 7: Xóa người dùng - dùng filter để tạo mảng mới (immutable) 
+            const removeUser = (id) => {
+                if (window.confirm("Bạn có chắc chắn muốn xóa người dùng này?")) {
+                    setUsers(prev => prev.filter(u => u.id !== id));
+                }
+            };
+
+            if (loading) {
+                return <div className="loading">Đang tải dữ liệu...</div>;
+            }
+
+            return (
+                <div className="table-container">
+                    {/* BƯỚC 4: Hiển thị bảng dữ liệu bằng map */}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Tên</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Thành phố</th>
+                                <th>Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredUsers.map(u => (
+                                <tr key={u.id}>
+                                    <td>{u.id}</td>
+                                    <td>{u.name}</td>
+                                    <td>{u.username}</td>
+                                    <td>{u.email}</td>
+                                    <td>{u.address.city}</td>
+                                    <td>
+                                        {/* BƯỚC 6: Nút Sửa */}
+                                        <button 
+                                            className="btn btn-edit"
+                                            onClick={() => editUser(u)}
+                                        >
+                                            Sửa
+                                        </button>
+                                        {/* BƯỚC 7: Nút Xóa */}
+                                        <button 
+                                            className="btn btn-delete"
+                                            onClick={() => removeUser(u.id)}
+                                        >
+                                            Xóa
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {/* Trạng thái rỗng sau khi lọc */}
+                    {filteredUsers.length === 0 && !loading && (
+                        <div className="loading">Không tìm thấy người dùng nào.</div>
+                    )}
+
+                    {/* BƯỚC 6 + 8: Modal chỉnh sửa với controlled inputs + class CSS modal */}
+                    {editing && (
+                        <div className="modal-overlay">
+                            <div className="modal-content">
+                                <div className="modal-header">
+                                    <h3 className="modal-title">Chỉnh sửa người dùng</h3>
+                                    <button 
+                                        className="close-btn"
+                                        onClick={() => setEditing(null)}
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="edit-name">Tên</label>
+                                    <input
+                                        id="edit-name"
+                                        type="text"
+                                        value={editing.name}
+                                        onChange={(e) => handleEditChange("name", e.target.value)}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="edit-username">Username</label>
+                                    <input
+                                        id="edit-username"
+                                        type="text"
+                                        value={editing.username}
+                                        onChange={(e) => handleEditChange("username", e.target.value)}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="edit-email">Email</label>
+                                    <input
+                                        id="edit-email"
+                                        type="email"
+                                        value={editing.email}
+                                        onChange={(e) => handleEditChange("email", e.target.value)}
+                                    />
+                                </div>
+                                
+                                <div className="form-group">
+                                    <label htmlFor="edit-city">Thành phố</label>
+                                    <input
+                                        id="edit-city"
+                                        type="text"
+                                        value={editing.address.city}
+                                        onChange={(e) => handleEditChange("address.city", e.target.value)}
+                                    />
+                                </div>
+                                
+                                <div className="form-actions">
+                                    <button 
+                                        className="btn btn-cancel"
+                                        onClick={() => setEditing(null)}
+                                    >
+                                        Hủy
+                                    </button>
+                                    <button 
+                                        className="btn btn-primary"
+                                        onClick={saveUser}
+                                    >
+                                        Lưu
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // BƯỚC 2: App giữ state dùng chung và truyền props xuống 
+        function App() {
+            const [kw, setKeyword] = React.useState("");     // keyword search
+            const [newUser, setNewUser] = React.useState(null); // dữ liệu user mới từ AddUser
+
+            return (
+                <div className="container">
+                    <h1>Quản lý người dùng</h1>
+                    
+                    {/* Header gồm ô search và nút thêm */}
+                    <div className="header">
+                        {/* BƯỚC 3: Truyền setter xuống SearchForm (onChangeValue) */}
+                        <SearchForm onChangeValue={setKeyword} />
+
+                        {/* BƯỚC 5: Nhận user mới từ AddUser qua onAdd */}
+                        <AddUser onAdd={setNewUser} />
+                    </div>
+                    
+                    {/* BƯỚC 4 + 5 + 6 + 7: Bảng kết quả nhận keyword và user mới */}
+                    <ResultTable 
+                        keyword={kw} 
+                        user={newUser} 
+                        onAdded={() => setNewUser(null)} // reset sau khi đã thêm vào bảng
+                    />
+                </div>
+            );
+        }
+
+        // BƯỚC 1: Render App vào #root bằng ReactDOM
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+
+    </script>
+</body>
+</html>
